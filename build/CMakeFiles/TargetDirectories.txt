@@ -1,9 +1,0 @@
-/media/kethershao/C14D581BDA18EBFA1/Longer Documents/Special/HITSZ大学/大三/计算机网络（实验）/net_lab/build/CMakeFiles/rebuild_cache.dir
-/media/kethershao/C14D581BDA18EBFA1/Longer Documents/Special/HITSZ大学/大三/计算机网络（实验）/net_lab/build/CMakeFiles/edit_cache.dir
-/media/kethershao/C14D581BDA18EBFA1/Longer Documents/Special/HITSZ大学/大三/计算机网络（实验）/net_lab/build/CMakeFiles/ctest_eth_in.dir
-/media/kethershao/C14D581BDA18EBFA1/Longer Documents/Special/HITSZ大学/大三/计算机网络（实验）/net_lab/build/CMakeFiles/ctest_icmp.dir
-/media/kethershao/C14D581BDA18EBFA1/Longer Documents/Special/HITSZ大学/大三/计算机网络（实验）/net_lab/build/CMakeFiles/main.dir
-/media/kethershao/C14D581BDA18EBFA1/Longer Documents/Special/HITSZ大学/大三/计算机网络（实验）/net_lab/build/CMakeFiles/ctest_ip.dir
-/media/kethershao/C14D581BDA18EBFA1/Longer Documents/Special/HITSZ大学/大三/计算机网络（实验）/net_lab/build/CMakeFiles/ctest_eth_out.dir
-/media/kethershao/C14D581BDA18EBFA1/Longer Documents/Special/HITSZ大学/大三/计算机网络（实验）/net_lab/build/CMakeFiles/ctest_ip_frag.dir
-/media/kethershao/C14D581BDA18EBFA1/Longer Documents/Special/HITSZ大学/大三/计算机网络（实验）/net_lab/build/CMakeFiles/ctest_arp.dir
