@@ -3,9 +3,17 @@
 #include <string.h>
 #include <stdio.h>
 
+#define ICMP_HEADER_LEN 8
+#define IP_HEADER_LEN 20
+#define ICMP_ERR_IP_DATA_LEN 8
+
+// uint8_t last_src_ip[4] = {0};
+// uint8_t my_pid = 0;
+// uint8_t last_id = -1;
+
 /**
  * @brief 处理一个收到的数据包
- *        你首先要检查ICMP报头长度是否小于icmp头部长度
+ *        你首先要检查buf长度是否小于icmp头部长度
  *        接着，查看该报文的ICMP类型是否为回显请求，
  *        如果是，则回送一个回显应答（ping应答），需要自行封装应答包。
  * 
@@ -20,6 +28,22 @@
 void icmp_in(buf_t *buf, uint8_t *src_ip)
 {
     // TODO
+    icmp_hdr_t *icmp_in_hdr = (icmp_hdr_t *)buf->data;
+    uint16_t icmp_checksum = icmp_in_hdr->checksum;
+    icmp_in_hdr->checksum = 0;
+
+    // 检包
+    if (buf->len < ICMP_HEADER_LEN || icmp_checksum != checksum16((uint16_t *)buf->data, buf->len))
+    {
+        return;
+    }
+
+    if (icmp_in_hdr->type == ICMP_TYPE_ECHO_REQUEST && icmp_in_hdr->code == 0)
+    {
+        icmp_in_hdr->type = ICMP_TYPE_ECHO_REPLY;
+        icmp_in_hdr->checksum = checksum16((uint16_t *)buf->data, buf->len);
+        ip_out(buf, src_ip, NET_PROTOCOL_ICMP);
+    }
 }
 
 /**
@@ -36,5 +60,17 @@ void icmp_in(buf_t *buf, uint8_t *src_ip)
 void icmp_unreachable(buf_t *recv_buf, uint8_t *src_ip, icmp_code_t code)
 {
     // TODO
-    
+    buf_init(&txbuf, ICMP_HEADER_LEN + IP_HEADER_LEN + ICMP_ERR_IP_DATA_LEN);
+    icmp_hdr_t icmp_out_hdr = {
+        .type = ICMP_TYPE_UNREACH,
+        .code = code,
+        .checksum = 0,
+        .id = 0,
+        .seq = 0};
+    memcpy(txbuf.data, &icmp_out_hdr, ICMP_HEADER_LEN); //拷贝icmp头部(空校验和)
+    //拷贝收到的ip数据包的头部和数据部分的8个字节
+    memcpy(txbuf.data + ICMP_HEADER_LEN, recv_buf->data, IP_HEADER_LEN + ICMP_ERR_IP_DATA_LEN);
+    icmp_out_hdr.checksum = checksum16((uint16_t *)txbuf.data, ICMP_HEADER_LEN + IP_HEADER_LEN + ICMP_ERR_IP_DATA_LEN);
+    memcpy(txbuf.data, &icmp_out_hdr, ICMP_HEADER_LEN); //拷贝icmp头部(有校验和)
+    ip_out(&txbuf, src_ip, NET_PROTOCOL_ICMP);
 }

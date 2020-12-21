@@ -5,6 +5,13 @@
 #include <string.h>
 #include <stdio.h>
 
+#define ARP_REQUEST_MAC                          \
+    {                                            \
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff \
+    }
+
+const uint8_t arp_request_mac[] = ARP_REQUEST_MAC;
+
 /**
  * @brief 初始的arp包
  * 
@@ -45,7 +52,33 @@ arp_buf_t arp_buf;
 void arp_update(uint8_t *ip, uint8_t *mac, arp_state_t state)
 {
     // TODO
-
+    int invalid_index = -1;
+    int longest_time_index = -1;
+    long longest_time = -1;
+    for (int i = 0; i < ARP_MAX_ENTRY; i++)
+    {
+        time_t arp_time = time(NULL) - arp_table[i].timeout;
+        if (arp_table[i].state == ARP_INVALID)
+        {
+            invalid_index = i;
+        }
+        else if (arp_time > ARP_TIMEOUT_SEC) //超时
+        {
+            arp_table[i].state = ARP_INVALID;
+            invalid_index = i;
+        }
+        else if (arp_time > longest_time) //未超时，更新最长时间
+        {
+            longest_time = arp_time;
+            longest_time_index = i;
+        }
+    }
+    // 更新表项
+    int update_index = invalid_index == -1 ? longest_time_index : invalid_index;
+    memcpy(arp_table[update_index].ip, ip, NET_IP_LEN);
+    arp_table[update_index].timeout = time(NULL);
+    memcpy(arp_table[update_index].mac, mac, NET_MAC_LEN);
+    arp_table[update_index].state = state;
 }
 
 /**
@@ -73,7 +106,13 @@ static uint8_t *arp_lookup(uint8_t *ip)
 static void arp_req(uint8_t *target_ip)
 {
     // TODO
-
+    buf_init(&txbuf, sizeof(arp_pkt_t));
+    arp_pkt_t arp_pack;
+    arp_pack = arp_init_pkt;
+    memcpy(arp_pack.target_ip, target_ip, NET_IP_LEN);
+    arp_pack.opcode = swap16(ARP_REQUEST);
+    memcpy(txbuf.data, &arp_pack, sizeof(arp_pkt_t));
+    ethernet_out(&txbuf, arp_request_mac, NET_PROTOCOL_ARP);
 }
 
 /**
@@ -84,7 +123,7 @@ static void arp_req(uint8_t *target_ip)
  *        接着，调用arp_update更新ARP表项
  *        查看arp_buf是否有效，如果有效，则说明ARP分组队列里面有待发送的数据包。
  *        即上一次调用arp_out()发送来自IP层的数据包时，由于没有找到对应的MAC地址进而先发送的ARP request报文
- *        此时，收到了该request的应答报文。然后，根据IP地址来查找ARM表项，如果能找到该IP地址对应的MAC地址，
+ *        此时，收到了该request的应答报文。然后，根据IP地址来查找ARP表项，如果能找到该IP地址对应的MAC地址，
  *        则将缓存的数据包arp_buf再发送到ethernet层。
  * 
  *        如果arp_buf无效，还需要判断接收到的报文是否为request请求报文，并且，该请求报文的目的IP正好是本机的IP地址，
@@ -96,7 +135,32 @@ static void arp_req(uint8_t *target_ip)
 void arp_in(buf_t *buf)
 {
     // TODO
-    
+    arp_pkt_t *arp = (arp_pkt_t *)buf->data;
+    int opcode_swap16 = swap16(arp->opcode);
+    // 检包
+    if (arp->hw_type != swap16(ARP_HW_ETHER) || arp->pro_type != swap16(NET_PROTOCOL_IP) || arp->hw_len != NET_MAC_LEN || arp->pro_len != NET_IP_LEN || (opcode_swap16 != ARP_REQUEST && opcode_swap16 != ARP_REPLY))
+    {
+        return;
+    }
+    arp_update(arp->sender_ip, arp->sender_mac, ARP_VALID);
+
+    if (arp_buf.valid == 1) //有待发送的ip数据包
+    {
+        arp_buf.valid = 0;
+        ethernet_out(&arp_buf.buf, arp->sender_mac, arp_buf.protocol);
+    }
+    // 判断是否为请求报文，若是则继续判断请求的目的ip地址是否是本机
+    else if (opcode_swap16 == ARP_REQUEST && memcmp(arp->target_ip, net_if_ip, NET_IP_LEN) == 0)
+    {
+        arp_pkt_t arp_reply_pack = arp_init_pkt;
+        memcpy(arp_reply_pack.target_mac, arp->sender_mac, NET_MAC_LEN);
+        memcpy(arp_reply_pack.target_ip, arp->sender_ip, NET_IP_LEN);
+        arp_reply_pack.opcode = swap16(ARP_REPLY);
+        // 填充完arp报文后将其拷贝给一个buf，然后将buf（响应报文）通过arp_out发射出去
+        buf_init(&txbuf, sizeof(arp_pkt_t));
+        memcpy(txbuf.data, &arp_reply_pack, sizeof(arp_pkt_t));
+        arp_out(&txbuf, arp_reply_pack.target_ip, NET_PROTOCOL_ARP);
+    }
 }
 
 /**
@@ -113,7 +177,20 @@ void arp_in(buf_t *buf)
 void arp_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol)
 {
     // TODO
+    uint8_t *mac_hit_ARP;
 
+    if (mac_hit_ARP = arp_lookup(ip)) //ARP表中找得到该IP地址
+    {
+        ethernet_out(buf, mac_hit_ARP, protocol);
+    }
+    else
+    {
+        arp_req(ip);
+        buf_copy(&arp_buf.buf, buf);
+        memcpy(arp_buf.ip, ip, NET_IP_LEN);
+        arp_buf.protocol = protocol;
+        arp_buf.valid = 1;
+    }
 }
 
 /**
