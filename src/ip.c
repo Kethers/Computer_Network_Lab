@@ -2,12 +2,15 @@
 #include "arp.h"
 #include "icmp.h"
 #include "udp.h"
+#include "driver.h"
+#include "ethernet.h"
 #include <string.h>
 
 #define IP_HEADER_LEN 20
 #define IP_DATA_MAX_LEN (ETHERNET_MTU - IP_HEADER_LEN)
 
 int id_out = 0;
+extern int arp_buf_sendout_flag;
 
 /**
  * @brief 处理一个收到的数据包
@@ -146,6 +149,23 @@ void ip_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol)
                 buf_remove_header(buf, IP_DATA_MAX_LEN); //删除原始数据包中已经发送的部分
                 offset += ((IP_DATA_MAX_LEN) >> 3);
                 buf_size -= IP_DATA_MAX_LEN; //更改待发送数据部分的大小
+
+                //以下代码用于解决UDP实验的思考题3：即arp表中无目标ip时，因为此程序为单线程，
+                //导致存储在arp_buf中的ip的第一个待发送的分片会被后续分片覆盖的问题
+                // uint8_t *mac_hit_ARP = arp_lookup(ip);
+                // if (mac_hit_ARP == NULL)
+                // {
+                //     arp_buf_sendout_flag = 0;
+                //     buf_init(&rxbuf, ETHERNET_MTU + sizeof(ether_hdr_t));
+                //     while (driver_recv(&rxbuf) > 0)
+                //     {
+                //         ethernet_in(&rxbuf);
+                //         if (arp_buf_sendout_flag == 1)
+                //         {
+                //             break;
+                //         }
+                //     }
+                // }
             }
             else
             {

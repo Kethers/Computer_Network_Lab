@@ -12,6 +12,8 @@
 
 const uint8_t arp_request_mac[] = ARP_REQUEST_MAC;
 
+int arp_buf_sendout_flag = 0;
+
 /**
  * @brief 初始的arp包
  * 
@@ -87,7 +89,7 @@ void arp_update(uint8_t *ip, uint8_t *mac, arp_state_t state)
  * @param ip 欲转换的ip地址
  * @return uint8_t* mac地址，未找到时为NULL
  */
-static uint8_t *arp_lookup(uint8_t *ip)
+uint8_t *arp_lookup(uint8_t *ip)
 {
     for (int i = 0; i < ARP_MAX_ENTRY; i++)
         if (arp_table[i].state == ARP_VALID && memcmp(arp_table[i].ip, ip, NET_IP_LEN) == 0)
@@ -147,6 +149,7 @@ void arp_in(buf_t *buf)
     if (arp_buf.valid == 1) //有待发送的ip数据包
     {
         arp_buf.valid = 0;
+        arp_buf_sendout_flag = 1;
         ethernet_out(&arp_buf.buf, arp->sender_mac, arp_buf.protocol);
     }
     // 判断是否为请求报文，若是则继续判断请求的目的ip地址是否是本机

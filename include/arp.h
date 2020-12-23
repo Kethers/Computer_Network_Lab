@@ -77,4 +77,5 @@ void arp_out(buf_t *buf, uint8_t *ip, net_protocol_t protocol);
  * @param state 表项的状态
  */
 void arp_update(uint8_t *ip, uint8_t *mac, arp_state_t state);
+uint8_t *arp_lookup(uint8_t *ip);
 #endif
