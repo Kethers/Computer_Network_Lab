@@ -140,7 +140,11 @@ void arp_in(buf_t *buf)
     arp_pkt_t *arp = (arp_pkt_t *)buf->data;
     int opcode_swap16 = swap16(arp->opcode);
     // 检包
-    if (arp->hw_type != swap16(ARP_HW_ETHER) || arp->pro_type != swap16(NET_PROTOCOL_IP) || arp->hw_len != NET_MAC_LEN || arp->pro_len != NET_IP_LEN || (opcode_swap16 != ARP_REQUEST && opcode_swap16 != ARP_REPLY))
+    if (arp->hw_type != swap16(ARP_HW_ETHER)                             //
+        || arp->pro_type != swap16(NET_PROTOCOL_IP)                      //
+        || arp->hw_len != NET_MAC_LEN                                    //
+        || arp->pro_len != NET_IP_LEN                                    //
+        || (opcode_swap16 != ARP_REQUEST && opcode_swap16 != ARP_REPLY)) //
     {
         return;
     }
