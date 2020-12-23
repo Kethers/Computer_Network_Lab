@@ -104,7 +104,7 @@ void udp_in(buf_t *buf, uint8_t *src_ip)
     if (handler_index != -1)
     {
         buf_remove_header(buf, UDP_HEADER_LEN);
-        buf->len = swap16(udp_header->total_len) - UDP_HEADER_LEN;
+        buf->len = swap16(udp_header->total_len) - UDP_HEADER_LEN; //这里是为了main函数打印时显示正确的数据长度
         udp_table[handler_index].handler(&udp_table[handler_index], src_ip, udp_header->src_port, buf);
     }
     else
