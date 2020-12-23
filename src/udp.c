@@ -105,7 +105,7 @@ void udp_in(buf_t *buf, uint8_t *src_ip)
     {
         buf_remove_header(buf, UDP_HEADER_LEN);
         buf->len = swap16(udp_header->total_len) - UDP_HEADER_LEN; //这里是为了main函数打印时显示正确的数据长度
-        udp_table[handler_index].handler(&udp_table[handler_index], src_ip, udp_header->src_port, buf);
+        udp_table[handler_index].handler(&udp_table[handler_index], src_ip, swap16(udp_header->src_port), buf);
     }
     else
     {
@@ -130,13 +130,12 @@ void udp_out(buf_t *buf, uint16_t src_port, uint8_t *dest_ip, uint16_t dest_port
 {
     // TODO
     buf_add_header(buf, UDP_HEADER_LEN);
-    udp_hdr_t udp_header = {
-        .src_port = src_port,
-        .dest_port = dest_port,
-        .total_len = swap16(buf->len),
-        .checksum = 0};
-    udp_header.checksum = udp_checksum(buf, net_if_ip, dest_ip);
-    memcpy(buf->data, &udp_header, UDP_HEADER_LEN);
+    udp_hdr_t *udp_header = (udp_hdr_t *)buf->data;
+    udp_header->src_port = swap16(src_port);
+    udp_header->dest_port = swap16(dest_port);
+    udp_header->total_len = swap16(buf->len);
+    udp_header->checksum = 0;
+    udp_header->checksum = udp_checksum(buf, net_if_ip, dest_ip);
     ip_out(buf, dest_ip, NET_PROTOCOL_UDP);
 }
 
