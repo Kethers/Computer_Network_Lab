@@ -5,6 +5,10 @@
 #include <string.h>
 #include <stdio.h>
 
+#define UDP_HEADER_LEN 8
+#define UDP_PSEUDO_HEADER_LEN 12
+#define IP_HEADER_LEN 20
+
 /**
  * @brief udp处理程序表
  * 
@@ -29,7 +33,24 @@ static udp_entry_t udp_table[UDP_MAX_HANDLER];
 static uint16_t udp_checksum(buf_t *buf, uint8_t *src_ip, uint8_t *dest_ip)
 {
     // TODO
-    
+    udp_hdr_t *udp_real_header = (udp_hdr_t *)buf->data;
+
+    buf_add_header(buf, UDP_PSEUDO_HEADER_LEN);
+    uint8_t ip_header_partly[UDP_PSEUDO_HEADER_LEN];
+    memcpy(ip_header_partly, buf->data, UDP_PSEUDO_HEADER_LEN); //拷贝要被伪首部覆盖的IP报头的部分
+
+    udp_peso_hdr_t udp_pseudo_header = {
+        .placeholder = 0,
+        .protocol = NET_PROTOCOL_UDP,
+        .total_len = udp_real_header->total_len};
+    memcpy(udp_pseudo_header.src_ip, src_ip, NET_IP_LEN);
+    memcpy(udp_pseudo_header.dest_ip, dest_ip, NET_IP_LEN);
+
+    memcpy(buf->data, &udp_pseudo_header, UDP_PSEUDO_HEADER_LEN);
+    uint16_t checksum = checksum16((uint16_t *)buf->data, buf->len);
+    memcpy(buf->data, ip_header_partly, UDP_PSEUDO_HEADER_LEN); //拷贝回暂存的IP报头部分
+    buf_remove_header(buf, UDP_PSEUDO_HEADER_LEN);
+    return checksum;
 }
 
 /**
@@ -53,7 +74,44 @@ static uint16_t udp_checksum(buf_t *buf, uint8_t *src_ip, uint8_t *dest_ip)
 void udp_in(buf_t *buf, uint8_t *src_ip)
 {
     // TODO
+    udp_hdr_t *udp_header = (udp_hdr_t *)buf->data;
+    if (swap16(udp_header->total_len) < 8)
+    {
+        return;
+    }
 
+    uint16_t udp_cksum = udp_header->checksum;
+    udp_header->checksum = 0;
+    if (udp_cksum != udp_checksum(buf, src_ip, net_if_ip))
+    {
+        return;
+    }
+    else
+    {
+        udp_header->checksum = udp_cksum;
+    }
+
+    int handler_index = -1;
+    for (int i = 0; i < UDP_MAX_HANDLER; i++)
+    {
+        if (udp_table[i].valid == 1 && udp_table[i].port == swap16(udp_header->dest_port))
+        {
+            handler_index = i;
+            break;
+        }
+    }
+
+    if (handler_index != -1)
+    {
+        buf_remove_header(buf, UDP_HEADER_LEN);
+        buf->len = swap16(udp_header->total_len) - UDP_HEADER_LEN;
+        udp_table[handler_index].handler(&udp_table[handler_index], src_ip, udp_header->src_port, buf);
+    }
+    else
+    {
+        buf_add_header(buf, IP_HEADER_LEN); //buf_add_header只改变指针指向的位置，而之前的ip报头的部分没有动，所以直接加上能有了IP报头
+        icmp_unreachable(buf, src_ip, ICMP_CODE_PORT_UNREACH);
+    }
 }
 
 /**
@@ -71,7 +129,15 @@ void udp_in(buf_t *buf, uint8_t *src_ip)
 void udp_out(buf_t *buf, uint16_t src_port, uint8_t *dest_ip, uint16_t dest_port)
 {
     // TODO
-
+    buf_add_header(buf, UDP_HEADER_LEN);
+    udp_hdr_t udp_header = {
+        .src_port = src_port,
+        .dest_port = dest_port,
+        .total_len = swap16(buf->len),
+        .checksum = 0};
+    udp_header.checksum = udp_checksum(buf, net_if_ip, dest_ip);
+    memcpy(buf->data, &udp_header, UDP_HEADER_LEN);
+    ip_out(buf, dest_ip, NET_PROTOCOL_UDP);
 }
 
 /**

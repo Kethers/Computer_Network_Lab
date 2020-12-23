@@ -1,7 +1,9 @@
 #ifndef DRIVER_H
 #define DRIVER_H
 #include "utils.h"
-
+#ifndef PCAP_BUF_SIZE
+#define PCAP_BUF_SIZE 1024
+#endif
 /**
  * @brief 打开网卡
  * 

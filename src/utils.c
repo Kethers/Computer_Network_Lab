@@ -100,7 +100,7 @@ uint16_t checksum16(uint16_t *buf, int len)
 
     if (len > 0) //如果有剩余字节的话，加上去
     {
-        sum += *(uint8_t *)buf;
+        sum += ((*buf) & 0xff00);
     }
 
     while (sum >> 16) //将32bits的sum折叠成16bits
